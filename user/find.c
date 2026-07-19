@@ -17,7 +17,7 @@ entname(char *path)
 }
 
 void
-find(char *curr, char *name, int exec, int argc, char *argv[])
+find(char *curr, char *name, int ex, int argc, char *argv[])
 {
   char buf[512] = {}, *p;
   int fd;
@@ -38,8 +38,19 @@ find(char *curr, char *name, int exec, int argc, char *argv[])
     case T_DEVICE:
     case T_FILE:
       if (strcmp(entname(curr), name) == 0) {
-        if (exec) {
-          // TODO exec          
+        if (ex) {
+          if (fork() != 0) {
+            int status;
+            wait(&status);
+            pause(1);
+          } else {
+            argv[argc] = curr;
+            argv[argc + 1] = 0;
+            if (exec(argv[0], argv) < 0) {
+              fprintf(2, "error in exec\n");
+              exit(1);
+            }
+          }
         } else {
           printf("%s\n", curr);
         }
@@ -74,7 +85,7 @@ find(char *curr, char *name, int exec, int argc, char *argv[])
           printf("can't stat %s\n", buf);
           continue;
         }
-        find(buf, name, exec, argc, argv);
+        find(buf, name, ex, argc, argv);
       }
       break;
   }
@@ -84,7 +95,7 @@ find(char *curr, char *name, int exec, int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-  char *fargv[MAXARG];
+  char *fargv[MAXARG] = {0};
   if (argc < 3) {
     printf("First arg: directory to search\n Second arg: file name to search for\n");
     fprintf(2, "Invalid arguments\n");
@@ -94,8 +105,10 @@ main(int argc, char *argv[])
   } else {
     // TODO: Parse argv and initalize fargv
     if (strcmp(argv[3], "-exec") == 0) {
-      argv[3] = argv[0];
-      find(argv[1], argv[2], true, argc - 3, fargv);
+      for (int i = 4; i < argc + 4; i++) {
+        fargv[i - 4] = argv[i];
+      }
+      find(argv[1], argv[2], true, argc - 4, fargv);
     }
   }
 
