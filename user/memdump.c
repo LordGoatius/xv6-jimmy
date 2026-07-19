@@ -57,9 +57,50 @@ main(int argc, char *argv[])
   exit(0);
 }
 
+// i: 4 32-bit integer, in decimal.
+// p: 8 64-bit integer, in hex.
+// h: 2 16-bit integer, in decimal.
+// c: 1 8-bit ASCII character.
+// s: the next 8 bytes of the data contain a 64-bit pointer to a C string; print the string.
+// S: the rest of the data contains the bytes of a null-terminated C string; print the string. 
 void
 memdump(char *fmt, char *data)
 {
-  // Your code here.
-
+  char chr;
+  u16 val16;
+  u32 val32;
+  u64 val64;
+  char *ptr;
+  for (; *fmt; fmt++) {
+    switch (*fmt) {
+      case 'i':
+        val32 = *(u32*)data;
+        printf("%d\n", val32);
+        data += 4;
+        break;
+      case 'p':
+        val64 = *(u64*)data;
+        printf("%lx\n", val64);
+        data += 8;
+        break;
+      case 'h':
+        val16 = *(u16*)data;
+        printf("%d\n", val16);
+        data += 2;
+        break;
+      case 'c':
+        chr = *(char*)data;
+        printf("%c\n", chr);
+        data += 1;
+        break;
+      case 's':
+        ptr = *(char**)data;
+        printf("%s\n", ptr);
+        data += 8;
+        break;
+      case 'S':
+        printf("%s\n", data);
+        break;
+    }
+  }
 }

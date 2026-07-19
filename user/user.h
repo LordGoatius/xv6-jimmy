@@ -1,4 +1,6 @@
+#include "kernel/types.h"
 #define SBRK_ERROR ((char *)-1)
+#define NULL 0
 
 struct stat;
 
