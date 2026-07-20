@@ -67,6 +67,7 @@ strncmp(const char *p, const char *q, uint n)
   return (uchar)*p - (uchar)*q;
 }
 
+// (dest, src, len)
 char*
 strncpy(char *s, const char *t, int n)
 {
