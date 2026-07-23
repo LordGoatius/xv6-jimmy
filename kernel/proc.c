@@ -127,18 +127,23 @@ found:
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
+    goto exit;
+  }
+
+  // Allocate a usyscall
+  if ((p->usyscall = (struct usyscall *)kalloc()) == 0) {
+    goto exit;
   }
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
-    freeproc(p);
-    release(&p->lock);
-    return 0;
+    goto exit;
   }
+
+  // Set up usyscall
+  memset(p->usyscall, 0, PGSIZE);
+  p->usyscall->pid = p->pid;
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -147,6 +152,10 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   return p;
+exit:
+    freeproc(p);
+    release(&p->lock);
+    return 0;
 }
 
 // free a proc structure and the data hanging from it,
@@ -155,8 +164,12 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  uint64 u;
+  pte_t *pte;
+
   if(p->trapframe)
     kfree((void*)p->trapframe);
+
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -202,6 +215,13 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  if(mappages(pagetable, USYSCALL, PGSIZE,
+              (uint64)(p->usyscall), PTE_R | PTE_U) < 0){
+    uvmunmap(pagetable, USYSCALL, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
   return pagetable;
 }
 
@@ -212,6 +232,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmunmap(pagetable, USYSCALL, 1, 0);
   uvmfree(pagetable, sz);
 }
 
@@ -259,6 +280,7 @@ kfork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+  struct usyscall *s;
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -288,6 +310,8 @@ kfork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+  s = (struct usyscall *)walkaddr(np->pagetable, USYSCALL);
+  s->pid = pid;
 
   release(&np->lock);
 
